@@ -118,6 +118,34 @@ def _print_backtest(result: bt_mod.BacktestResult) -> None:
     print("    Hinweis: Historische Ergebnisse sind KEINE Garantie fuer die Zukunft.")
 
 
+def _unique_name(outfile: str, ticker: str, num_tickers: int) -> str:
+    """Haengt bei mehreren Tickern das Symbol an den Dateinamen an."""
+    if num_tickers <= 1:
+        return outfile
+    base, _, ext = outfile.rpartition(".")
+    return f"{base}_{ticker}.{ext}" if base else f"{outfile}_{ticker}"
+
+
+def _print_comparison(results) -> None:
+    print("\n  Strategie-Vergleich (nach Sharpe sortiert):")
+    rows = []
+    for r in results:
+        rows.append([
+            r.name,
+            f"{r.total_return_pct:+.1f} %",
+            f"{r.sharpe:.2f}",
+            f"{r.max_drawdown_pct:.1f} %",
+            f"{r.win_rate_pct:.0f} %",
+            f"{r.exposure_pct:.0f} %",
+            r.num_trades,
+        ])
+    print(tabulate(
+        rows,
+        headers=["Strategie", "Rendite", "Sharpe", "Max DD", "Treffer", "Invest.", "Trades"],
+        tablefmt="simple",
+    ))
+
+
 def _print_position(plan: pf_mod.PositionPlan, ticker: str, cur: str) -> None:
     print("\n  Positionsgroesse (risikobasiert):")
     rows = [
@@ -176,6 +204,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Equity-Kurve als PNG speichern (Standarddatei: equity.png)")
     p.add_argument("--dark", action="store_true",
                    help="Chart im dunklen Farbschema zeichnen")
+    p.add_argument("--report", metavar="DATEI", nargs="?", const="report.html",
+                   help="Interaktiven HTML-Report erzeugen (Standard: report.html)")
+    p.add_argument("--compare", action="store_true",
+                   help="Mehrere Strategie-Varianten vergleichen (im Report + Konsole)")
+    p.add_argument("--source", choices=["auto", "yahoo", "stooq"], default="auto",
+                   help="Datenquelle: auto (Yahoo, Fallback Stooq), yahoo oder stooq")
     p.add_argument("--fundamental-weight", type=float, default=0.4,
                    help="Gewicht der Fundamentaldaten (0..1). Standard: 0.4")
     p.add_argument("--risk-free-rate", type=float, default=0.03,
@@ -214,6 +248,7 @@ def main(argv=None) -> int:
         period=args.period,
         risk_free_rate=args.risk_free_rate,
         fundamental_weight=args.fundamental_weight,
+        source=args.source,
     )
 
     print(DISCLAIMER)
@@ -244,23 +279,39 @@ def main(argv=None) -> int:
             report = analyzer.analyze_market_data(md, with_options=args.options)
             _print_report(report)
 
-            if args.backtest or args.plot:
+            result = None
+            comparison = None
+            if args.backtest or args.plot or args.report:
                 result = bt_mod.run(md.history, risk_free_rate=args.risk_free_rate)
                 if args.backtest:
                     _print_backtest(result)
                 if args.plot:
                     from . import plot as plot_mod
-                    # Bei mehreren Tickern Dateinamen eindeutig machen.
-                    outfile = args.plot
-                    if len(tickers) > 1:
-                        base, _, ext = outfile.rpartition(".")
-                        outfile = f"{base}_{ticker}.{ext}" if base else f"{outfile}_{ticker}"
+                    outfile = _unique_name(args.plot, ticker, len(tickers))
                     path = plot_mod.equity_curve(
                         result, md.history["Close"],
                         title=f"{report.name} ({ticker}) - Equity-Kurve",
                         outfile=outfile, dark=args.dark,
                     )
                     print(f"\n  Chart gespeichert: {path}")
+
+            if args.compare:
+                from . import multistrategy as ms_mod
+                comparison = ms_mod.compare(md.history, risk_free_rate=args.risk_free_rate)
+                _print_comparison(comparison)
+
+            if args.report:
+                from . import report as report_mod
+                if result is None:
+                    result = bt_mod.run(md.history, risk_free_rate=args.risk_free_rate)
+                outfile = _unique_name(args.report, ticker, len(tickers))
+                path = report_mod.write_html(
+                    outfile, result, md.history["Close"],
+                    report=report, comparison=comparison,
+                    title=f"{report.name} ({ticker}) - Report",
+                )
+                print(f"\n  Interaktiver Report gespeichert: {path}")
+                print("  -> Im Browser oeffnen (Doppelklick oder 'file://'-Pfad).")
 
             if args.capital:
                 from .indicators import atr as atr_fn

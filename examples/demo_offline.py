@@ -104,9 +104,32 @@ def main() -> None:
             result, df["Close"],
             title="Demo - Equity-Kurve (synthetische Daten)", outfile="equity.png",
         )
-        print(f"\n  Equity-Kurve gespeichert: {path}")
+        print(f"\n  Equity-Kurve (PNG, mit Drawdown) gespeichert: {path}")
     except Exception as exc:  # noqa: BLE001 - Chart ist optional
-        print(f"\n  (Chart uebersprungen: {exc})")
+        print(f"\n  (PNG-Chart uebersprungen: {exc})")
+
+    # --- Strategie-Vergleich + interaktiver HTML-Report ---
+    from stockanalyzer import multistrategy, report
+    from stockanalyzer.analyzer import Analyzer
+    from stockanalyzer.data import MarketData
+
+    comparison = multistrategy.compare(df)
+    print("\n  Strategie-Vergleich (nach Sharpe):")
+    for r in comparison:
+        print(f"    {r.name:<26} Rendite {r.total_return_pct:+6.1f}%  "
+              f"Sharpe {r.sharpe:5.2f}  Max DD {r.max_drawdown_pct:6.1f}%")
+
+    md = MarketData("DEMO", df, {
+        "shortName": "Demo Industries AG", "currency": "EUR",
+        "trailingPE": 18, "profitMargins": 0.22, "returnOnEquity": 0.24,
+        "debtToEquity": 45, "revenueGrowth": 0.17, "dividendYield": 0.015,
+    })
+    stock_report = Analyzer().analyze_market_data(md)
+    report.write_html("report.html", result, df["Close"],
+                      report=stock_report, comparison=comparison,
+                      title="Demo - stockanalyzer Report")
+    print("\n  Interaktiver HTML-Report gespeichert: report.html")
+    print("  -> Im Browser oeffnen: Equity-Kurve mit Hover, Drawdown, Vergleich.")
 
 
 if __name__ == "__main__":

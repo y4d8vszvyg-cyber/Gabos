@@ -39,22 +39,38 @@ class BacktestResult:
     exposure_pct: float              # Anteil der Zeit investiert
     equity_curve: pd.Series          # Kapitalkurve (Start = 1.0)
     signal: pd.Series                # 1 = investiert, 0 = Cash
+    drawdown: pd.Series              # laufender Drawdown in % (<= 0)
+    name: str = "Strategie"          # Bezeichnung der Strategie-Variante
 
 
-def generate_positions(df: pd.DataFrame) -> pd.Series:
-    """Erzeugt das taegliche Long/Flat-Signal (1/0) aus den Indikatoren."""
+def generate_positions(df: pd.DataFrame, sma_window: int = 50,
+                       rsi_max: float = 70, use_macd: bool = True) -> pd.Series:
+    """Erzeugt das taegliche Long/Flat-Signal (1/0) aus den Indikatoren.
+
+    Parameters
+    ----------
+    sma_window: Fenster des Trendfilters (Kurs muss darueber liegen).
+    rsi_max:    RSI-Obergrenze - oberhalb gilt der Markt als ueberkauft (kein Neueinstieg).
+    use_macd:   Zusaetzliche MACD-Bestaetigung verlangen.
+    """
     close = df["Close"]
-    sma50 = ind.sma(close, 50)
-    macd_line, signal_line, _ = ind.macd(close)
+    sma = ind.sma(close, sma_window)
     rsi = ind.rsi(close, 14)
 
-    long_cond = (close > sma50) & (macd_line > signal_line) & (rsi < 70)
+    long_cond = (close > sma) & (rsi < rsi_max)
+    if use_macd:
+        macd_line, signal_line, _ = ind.macd(close)
+        long_cond = long_cond & (macd_line > signal_line)
     return long_cond.fillna(False).astype(int)
 
 
 def run(df: pd.DataFrame, fee_pct: float = 0.001, risk_free_rate: float = 0.03,
-        periods_per_year: int = 252) -> BacktestResult:
+        periods_per_year: int = 252, sma_window: int = 50,
+        rsi_max: float = 70, use_macd: bool = True) -> BacktestResult:
     """Fuehrt den Backtest auf einer OHLCV-Historie aus.
+
+    Die Strategieparameter (``sma_window``, ``rsi_max``, ``use_macd``) erlauben
+    den Vergleich mehrerer Varianten.
 
     Parameters
     ----------
@@ -64,7 +80,9 @@ def run(df: pd.DataFrame, fee_pct: float = 0.001, risk_free_rate: float = 0.03,
     daily_ret = close.pct_change().fillna(0.0)
 
     # Signal von *gestern* bestimmt die heutige Position (kein Look-ahead-Bias).
-    position = generate_positions(df).shift(1).fillna(0)
+    position = generate_positions(
+        df, sma_window=sma_window, rsi_max=rsi_max, use_macd=use_macd
+    ).shift(1).fillna(0)
 
     # Gebuehren bei jedem Wechsel der Position.
     switches = position.diff().abs().fillna(0)
@@ -86,7 +104,8 @@ def run(df: pd.DataFrame, fee_pct: float = 0.001, risk_free_rate: float = 0.03,
         if strat_ret.std(ddof=1) > 0 else 0.0
 
     running_max = equity.cummax()
-    max_dd = float((equity / running_max - 1.0).min()) * 100
+    drawdown = (equity / running_max - 1.0) * 100
+    max_dd = float(drawdown.min())
 
     invested = strat_ret[position > 0]
     win_rate = float((invested > 0).mean()) * 100 if len(invested) else 0.0
@@ -105,4 +124,5 @@ def run(df: pd.DataFrame, fee_pct: float = 0.001, risk_free_rate: float = 0.03,
         exposure_pct=round(exposure, 1),
         equity_curve=equity,
         signal=position,
+        drawdown=drawdown.round(3),
     )

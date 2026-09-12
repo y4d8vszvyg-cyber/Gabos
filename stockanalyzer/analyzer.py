@@ -49,18 +49,19 @@ class Analyzer:
     """Fuehrt die komplette Analyse fuer einen Ticker aus."""
 
     def __init__(self, period: str = "1y", risk_free_rate: float = 0.03,
-                 fundamental_weight: float = 0.4):
+                 fundamental_weight: float = 0.4, source: str = "auto"):
         self.period = period
         self.risk_free_rate = risk_free_rate
+        self.source = source
         # Gewichtung Technik vs. Fundamental beim Gesamt-Score.
         self.fundamental_weight = max(0.0, min(1.0, fundamental_weight))
 
     def fetch(self, ticker: str) -> data_mod.MarketData:
         """Laedt die Marktdaten einmalig (fuer Report + Backtest + Sizing wiederverwendbar)."""
-        return data_mod.fetch(ticker, period=self.period)
+        return data_mod.fetch(ticker, period=self.period, source=self.source)
 
     def analyze(self, ticker: str, with_options: bool = False) -> StockReport:
-        md = data_mod.fetch(ticker, period=self.period)
+        md = self.fetch(ticker)
         return self.analyze_market_data(md, with_options=with_options)
 
     def analyze_market_data(self, md: data_mod.MarketData,

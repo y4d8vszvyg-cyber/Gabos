@@ -33,11 +33,18 @@ Black-Scholes-Modell mit allen wichtigen Greeks.
    Call- (bullisch) oder Put-Idee (bärisch) abgeleitet, inkl. Risikohinweis.
 6. **Backtesting + Chart** – testet die Trendfolge-Strategie auf der Historie,
    vergleicht sie mit Buy & Hold (Rendite, Sharpe, Max Drawdown, Trefferquote)
-   und zeichnet die **Equity-Kurve** als PNG (hell/dunkel).
-7. **Positionsgrößen-Rechner** – berechnet risikobasiert (Risk-per-Trade +
+   und zeichnet die **Equity-Kurve mit Drawdown-Panel** als PNG (hell/dunkel).
+7. **Strategie-Vergleich** – testet mehrere Parametersätze (Trend-Fenster,
+   RSI-Grenze, mit/ohne MACD) gegeneinander – Schutz gegen „Overfitting".
+8. **Interaktiver HTML-Report** – eine eigenständige Datei mit **Hover-Charts**
+   (Fadenkreuz + Tooltip), Drawdown-Panel und Vergleichstabelle. Ohne externe
+   Abhängigkeiten – einfach im Browser öffnen.
+9. **Positionsgrößen-Rechner** – berechnet risikobasiert (Risk-per-Trade +
    ATR-Stop), wie viele Stücke du kaufst, damit ein Fehlschlag das Depot nicht
    ruiniert. Das ist beim Geldverdienen wichtiger als jedes einzelne Signal.
-8. **Watchlist** – analysiere eine ganze Liste aus einer Textdatei.
+10. **Watchlist** – analysiere eine ganze Liste aus einer Textdatei.
+11. **Zwei Datenquellen** – Yahoo Finance (Standard) mit automatischem
+    **Stooq-Fallback** (kostenlos, ohne API-Key).
 
 ## Installation
 
@@ -68,9 +75,18 @@ python -m stockanalyzer KO --fundamental-weight 0.6
 # Backtest: hätte die Strategie in der Vergangenheit funktioniert?
 python -m stockanalyzer AAPL --backtest
 
-# Equity-Kurve als Chart (PNG) speichern – optional im dunklen Design
+# Equity-Kurve als Chart (PNG, mit Drawdown) – optional im dunklen Design
 python -m stockanalyzer AAPL --plot equity.png
 python -m stockanalyzer AAPL --plot chart.png --dark
+
+# Mehrere Strategie-Varianten vergleichen
+python -m stockanalyzer AAPL --compare
+
+# INTERAKTIVER HTML-Report (Hover-Charts) – dann im Browser öffnen
+python -m stockanalyzer AAPL --report report.html --compare
+
+# Datenquelle wählen (auto = Yahoo mit Stooq-Fallback)
+python -m stockanalyzer AAPL --source stooq
 
 # Positionsgröße: 10.000 € Depot, 1% Risiko je Trade, Stop = 2x ATR
 python -m stockanalyzer AAPL --capital 10000 --risk-per-trade 1
@@ -89,8 +105,11 @@ python -m stockanalyzer --watchlist examples/watchlist.txt --rank
 | `--fundamental-weight` | Gewicht Fundamentaldaten im Gesamt-Score (`0`–`1`)    | `0.4`    |
 | `--risk-free-rate`     | Risikofreier Zins p. a. für die Optionsbewertung      | `0.03`   |
 | `--backtest`           | Historischen Backtest der Strategie ausgeben          | aus      |
-| `--plot [DATEI]`       | Equity-Kurve als PNG speichern (Standard: equity.png) | –        |
-| `--dark`               | Chart im dunklen Farbschema                           | aus      |
+| `--compare`            | Mehrere Strategie-Varianten vergleichen               | aus      |
+| `--plot [DATEI]`       | Equity-Kurve (+Drawdown) als PNG (Standard: equity.png) | –      |
+| `--report [DATEI]`     | Interaktiver HTML-Report (Standard: report.html)      | –        |
+| `--dark`               | PNG-Chart im dunklen Farbschema                       | aus      |
+| `--source`             | Datenquelle: `auto` / `yahoo` / `stooq`               | `auto`   |
 | `--watchlist DATEI`    | Ticker aus einer Textdatei laden                      | –        |
 | `--capital`            | Depotkapital → risikobasierte Positionsgröße          | –        |
 | `--risk-per-trade`     | Anteil des Depots, den du je Trade riskierst (%)      | `1.0`    |
@@ -130,13 +149,27 @@ python -m pytest tests/ -q
 Die Tests prüfen die Mathematik netzunabhängig (u. a. Put-Call-Parität,
 Black-Scholes-Referenzwert, RSI-Grenzen, implizite Vola per Roundtrip).
 
-## Hinweis zum Datenzugriff
+## Live-Daten
 
-`yfinance` benötigt Zugriff auf Yahoo-Finance-Hosts
-(`query1/query2.finance.yahoo.com`). In abgeschotteten Umgebungen (z. B. hinter
-einer restriktiven Proxy-Policy) kann das blockiert sein; das Programm meldet
-das dann mit einer klaren Fehlermeldung. Führe es in dem Fall lokal aus oder
-erlaube die Yahoo-Hosts in der Netzwerk-Policy.
+Das Programm holt **echte, aktuelle Kursdaten**:
+
+- **Yahoo Finance** (Standard, via `yfinance`) – Aktien, ETFs, Indizes weltweit,
+  inkl. Fundamentaldaten und Optionsketten.
+- **Stooq** (automatischer Fallback, `--source stooq`) – kostenlos, **ohne
+  API-Key**; liefert Tageskurse (keine Fundamentaldaten/Optionen).
+
+```bash
+python -m stockanalyzer AAPL            # auto: Yahoo, bei Fehler Stooq
+python -m stockanalyzer AAPL --source stooq
+```
+
+**Wichtig – Sandbox/CI:** In abgeschotteten Umgebungen (z. B. Claude Code on the
+web mit restriktiver Netzwerk-Policy) sind Finanz-Hosts oft gesperrt (HTTP 403).
+Dann kann **kein** Live-Datenabruf erfolgen – das Programm meldet das mit klarer
+Fehlermeldung. **Lösung:** das Tool **lokal auf deinem Rechner** ausführen (dort
+gibt es keine Egress-Sperre), oder in der Umgebungs-Policy die Hosts
+`*.finance.yahoo.com` bzw. `stooq.com` freigeben. Zum Ausprobieren des vollen
+Funktionsumfangs ohne Netz siehe die **Offline-Demo** oben.
 
 ## Wie du damit vernünftig umgehst
 

@@ -48,7 +48,8 @@ def _import_yfinance():
     return yf
 
 
-def fetch(ticker: str, period: str = "1y", interval: str = "1d") -> MarketData:
+def fetch(ticker: str, period: str = "1y", interval: str = "1d",
+          source: str = "auto") -> MarketData:
     """Laedt Kurshistorie und Fundamentaldaten fuer einen Ticker.
 
     Parameters
@@ -56,7 +57,20 @@ def fetch(ticker: str, period: str = "1y", interval: str = "1d") -> MarketData:
     ticker:   Symbol, z.B. "AAPL", "MSFT", "SAP.DE".
     period:   Zeitraum der Historie ("6mo", "1y", "2y", "5y", "max").
     interval: Kerzen-Intervall ("1d", "1wk", "1mo").
+    source:   "auto" (Yahoo, bei Fehler Stooq), "yahoo" oder "stooq".
     """
+    if source == "stooq":
+        return _fetch_stooq(ticker, period)
+    try:
+        return _fetch_yahoo(ticker, period, interval)
+    except DataError:
+        if source == "yahoo":
+            raise
+        # Auto-Fallback auf Stooq (kein API-Key noetig).
+        return _fetch_stooq(ticker, period)
+
+
+def _fetch_yahoo(ticker: str, period: str, interval: str) -> MarketData:
     yf = _import_yfinance()
     ticker = ticker.strip().upper()
     if not ticker:
@@ -88,6 +102,45 @@ def fetch(ticker: str, period: str = "1y", interval: str = "1d") -> MarketData:
         info = {}
 
     return MarketData(ticker=ticker, history=history, info=info)
+
+
+_PERIOD_DAYS = {"6mo": 190, "1y": 370, "2y": 740, "5y": 1830, "max": 100000}
+
+
+def _fetch_stooq(ticker: str, period: str) -> MarketData:
+    """Laedt Tageskurse von Stooq (CSV, ohne API-Key).
+
+    US-Symbole brauchen bei Stooq das Suffix ``.us`` (wird ergaenzt, falls
+    kein Punkt im Symbol steht). Indizes wie ``^SPX`` funktionieren direkt.
+    """
+    ticker = ticker.strip().upper()
+    if not ticker:
+        raise DataError("Leeres Ticker-Symbol.")
+
+    symbol = ticker if ("." in ticker or ticker.startswith("^")) else f"{ticker}.US"
+    url = f"https://stooq.com/q/d/l/?s={symbol.lower()}&i=d"
+
+    try:
+        df = pd.read_csv(url)
+    except Exception as exc:  # noqa: BLE001
+        raise DataError(f"Stooq-Daten fuer '{ticker}' nicht ladbar: {exc}") from exc
+
+    if df is None or df.empty or "Close" not in df.columns:
+        raise DataError(
+            f"Keine Stooq-Daten fuer '{ticker}'. Symbol korrekt? "
+            f"(US-Aktien: reines Symbol, dt. Aktien: z.B. 'SAP.DE')."
+        )
+
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.set_index("Date").sort_index()
+    days = _PERIOD_DAYS.get(period, 370)
+    df = df.tail(min(len(df), days)).dropna(subset=["Close"])
+
+    if len(df) < 20:
+        raise DataError(f"Zu wenige Stooq-Datenpunkte fuer '{ticker}' ({len(df)}).")
+
+    # Stooq liefert keine Fundamentaldaten -> info bleibt leer.
+    return MarketData(ticker=ticker, history=df, info={})
 
 
 def fetch_option_chain(ticker: str, expiry: Optional[str] = None):
