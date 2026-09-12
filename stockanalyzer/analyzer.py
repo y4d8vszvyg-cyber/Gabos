@@ -55,9 +55,17 @@ class Analyzer:
         # Gewichtung Technik vs. Fundamental beim Gesamt-Score.
         self.fundamental_weight = max(0.0, min(1.0, fundamental_weight))
 
+    def fetch(self, ticker: str) -> data_mod.MarketData:
+        """Laedt die Marktdaten einmalig (fuer Report + Backtest + Sizing wiederverwendbar)."""
+        return data_mod.fetch(ticker, period=self.period)
+
     def analyze(self, ticker: str, with_options: bool = False) -> StockReport:
         md = data_mod.fetch(ticker, period=self.period)
+        return self.analyze_market_data(md, with_options=with_options)
 
+    def analyze_market_data(self, md: data_mod.MarketData,
+                            with_options: bool = False) -> StockReport:
+        """Fuehrt die Analyse auf bereits geladenen Marktdaten aus."""
         technical = sig_mod.analyze(md.history)
         fundamental = fund_mod.analyze(md.info)
 

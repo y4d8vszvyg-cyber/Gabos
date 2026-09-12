@@ -16,6 +16,9 @@ import sys
 from tabulate import tabulate
 
 from . import __version__
+from . import backtest as bt_mod
+from . import portfolio as pf_mod
+from . import watchlist as wl_mod
 from .analyzer import Analyzer, StockReport
 from .data import DataError
 
@@ -98,6 +101,38 @@ def _print_report(report: StockReport) -> None:
             print(f"    ! {w}")
 
 
+def _print_backtest(result: bt_mod.BacktestResult) -> None:
+    print("\n  Backtest (Long/Flat-Trendfolge vs. Buy & Hold):")
+    rows = [
+        ["Strategie-Rendite", f"{result.total_return_pct:+.1f} %"],
+        ["Buy & Hold", f"{result.buy_hold_return_pct:+.1f} %"],
+        ["Rendite p.a.", f"{result.annual_return_pct:+.1f} %"],
+        ["Volatilitaet p.a.", f"{result.annual_volatility_pct:.1f} %"],
+        ["Sharpe-Ratio", f"{result.sharpe:.2f}"],
+        ["Max Drawdown", f"{result.max_drawdown_pct:.1f} %"],
+        ["Trefferquote (Tage)", f"{result.win_rate_pct:.1f} %"],
+        ["Positionswechsel", f"{result.num_trades}"],
+        ["Investiert (Zeit)", f"{result.exposure_pct:.1f} %"],
+    ]
+    print(tabulate(rows, tablefmt="simple", colalign=("left", "right")))
+    print("    Hinweis: Historische Ergebnisse sind KEINE Garantie fuer die Zukunft.")
+
+
+def _print_position(plan: pf_mod.PositionPlan, ticker: str, cur: str) -> None:
+    print("\n  Positionsgroesse (risikobasiert):")
+    rows = [
+        ["Stueckzahl", f"{plan.shares}"],
+        ["Kapitaleinsatz", f"{plan.position_value:.2f} {cur} ({plan.position_pct:.1f}% Depot)"],
+        ["Stop-Loss", f"{plan.stop_price:.2f} {cur}"],
+        ["Risiko je Aktie", f"{plan.risk_per_share:.2f} {cur}"],
+        ["Max. Verlust bis Stop", f"{plan.risk_amount:.2f} {cur}"],
+    ]
+    if plan.reward_to_risk is not None:
+        rows.append(["Chance/Risiko (CRV)", f"{plan.reward_to_risk:.2f} : 1"])
+    print(tabulate(rows, tablefmt="simple", colalign=("left", "right")))
+    print(f"    {plan.note}")
+
+
 def _print_ranking(reports) -> None:
     print("\n" + "=" * 68)
     print("  RANKING (nach Gesamt-Score)")
@@ -126,19 +161,47 @@ def build_parser() -> argparse.ArgumentParser:
         description="Analysiert Aktien und Optionen und leitet datenbasierte Signale ab.",
         epilog=DISCLAIMER,
     )
-    p.add_argument("tickers", nargs="+", help="Ein oder mehrere Symbole, z.B. AAPL MSFT SAP.DE")
+    p.add_argument("tickers", nargs="*", help="Ein oder mehrere Symbole, z.B. AAPL MSFT SAP.DE")
+    p.add_argument("--watchlist", metavar="DATEI",
+                   help="Ticker aus einer Textdatei laden (ein Symbol pro Zeile)")
     p.add_argument("--period", default="1y",
                    help="Zeitraum der Historie (6mo, 1y, 2y, 5y, max). Standard: 1y")
     p.add_argument("--rank", action="store_true",
                    help="Mehrere Ticker analysieren und als Ranking ausgeben")
     p.add_argument("--options", action="store_true",
                    help="Zusaetzlich Call/Put-Optionsideen berechnen")
+    p.add_argument("--backtest", action="store_true",
+                   help="Historischen Backtest der Trendfolge-Strategie ausgeben")
     p.add_argument("--fundamental-weight", type=float, default=0.4,
                    help="Gewicht der Fundamentaldaten (0..1). Standard: 0.4")
     p.add_argument("--risk-free-rate", type=float, default=0.03,
                    help="Risikofreier Zins p.a. fuer die Optionsbewertung. Standard: 0.03")
+    # Positionsgroessen-Rechner
+    p.add_argument("--capital", type=float,
+                   help="Depotkapital -> berechnet eine risikobasierte Positionsgroesse")
+    p.add_argument("--risk-per-trade", type=float, default=1.0,
+                   help="Anteil des Depots, der je Trade riskiert wird (%%). Standard: 1.0")
+    p.add_argument("--atr-multiple", type=float, default=2.0,
+                   help="Stop-Abstand als Vielfaches der ATR. Standard: 2.0")
+    p.add_argument("--max-position", type=float, default=20.0,
+                   help="Obergrenze je Position (%% des Depots). Standard: 20")
     p.add_argument("--version", action="version", version=f"stockanalyzer {__version__}")
     return p
+
+
+def _collect_tickers(args) -> list:
+    """Fuehrt Ticker aus Argumenten und Watchlist-Datei zusammen."""
+    tickers = list(args.tickers)
+    if args.watchlist:
+        tickers = wl_mod.load(args.watchlist) + tickers
+    # Duplikate entfernen, Reihenfolge bewahren.
+    seen, unique = set(), []
+    for tk in tickers:
+        up = tk.upper()
+        if up not in seen:
+            seen.add(up)
+            unique.append(up)
+    return unique
 
 
 def main(argv=None) -> int:
@@ -151,8 +214,19 @@ def main(argv=None) -> int:
 
     print(DISCLAIMER)
 
-    if args.rank and len(args.tickers) > 1:
-        reports, errors = analyzer.rank(args.tickers, with_options=args.options)
+    try:
+        tickers = _collect_tickers(args)
+    except FileNotFoundError as exc:
+        print(f"\n[Fehler] {exc}", file=sys.stderr)
+        return 1
+
+    if not tickers:
+        print("\n[Fehler] Keine Ticker angegeben. Beispiel: 'AAPL' oder '--watchlist datei.txt'.",
+              file=sys.stderr)
+        return 1
+
+    if args.rank and len(tickers) > 1:
+        reports, errors = analyzer.rank(tickers, with_options=args.options)
         if reports:
             _print_ranking(reports)
         for tk, err in errors:
@@ -160,10 +234,30 @@ def main(argv=None) -> int:
         return 0 if reports else 1
 
     exit_code = 0
-    for ticker in args.tickers:
+    for ticker in tickers:
         try:
-            report = analyzer.analyze(ticker, with_options=args.options)
+            md = analyzer.fetch(ticker)
+            report = analyzer.analyze_market_data(md, with_options=args.options)
             _print_report(report)
+
+            if args.backtest:
+                _print_backtest(bt_mod.run(md.history, risk_free_rate=args.risk_free_rate))
+
+            if args.capital:
+                from .indicators import atr as atr_fn
+                atr_val = float(atr_fn(md.history, 14).dropna().iloc[-1])
+                try:
+                    plan = pf_mod.position_size(
+                        capital=args.capital,
+                        entry_price=report.last_price,
+                        atr=atr_val,
+                        risk_per_trade_pct=args.risk_per_trade,
+                        atr_multiple=args.atr_multiple,
+                        max_position_pct=args.max_position,
+                    )
+                    _print_position(plan, ticker, report.currency)
+                except ValueError as exc:
+                    print(f"\n  [Positionsgroesse uebersprungen] {exc}", file=sys.stderr)
         except DataError as exc:
             print(f"\n[Fehler] {ticker}: {exc}", file=sys.stderr)
             exit_code = 1

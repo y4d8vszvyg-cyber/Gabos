@@ -21,7 +21,7 @@ import pandas as pd
 # gesetztes PYTHONPATH) laufbar ist.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from stockanalyzer import fundamentals, options, signals  # noqa: E402
+from stockanalyzer import backtest, fundamentals, indicators, options, portfolio, signals  # noqa: E402
 from stockanalyzer.signals import recommendation_label
 
 
@@ -78,6 +78,24 @@ def main() -> None:
     print(f"    PUT  @ {K:.2f}: fairer Preis {put:.2f}")
     print("\n  Interpretation: bullisches Bild -> Long Call setzt auf steigende")
     print("  Kurse. Max. Verlust = Praemie. Theta frisst taeglich Zeitwert.")
+
+    # --- Backtest der Trendfolge-Strategie ---
+    result = backtest.run(df)
+    print("\n  Backtest (Long/Flat-Trendfolge vs. Buy & Hold):")
+    print(f"    Strategie : {result.total_return_pct:+.1f} %   "
+          f"Buy&Hold: {result.buy_hold_return_pct:+.1f} %")
+    print(f"    Sharpe    : {result.sharpe:.2f}   Max Drawdown: {result.max_drawdown_pct:.1f} %   "
+          f"investiert: {result.exposure_pct:.0f}% der Zeit")
+    print("    (Historische Ergebnisse sind KEINE Garantie fuer die Zukunft.)")
+
+    # --- Positionsgroesse (risikobasiert) ---
+    atr_val = float(indicators.atr(df, 14).dropna().iloc[-1])
+    plan = portfolio.position_size(
+        capital=10_000, entry_price=S, atr=atr_val, risk_per_trade_pct=1.0, atr_multiple=2.0,
+    )
+    print("\n  Positionsgroesse bei 10.000 Kapital, 1% Risiko/Trade:")
+    print(f"    {plan.shares} Stueck fuer {plan.position_value:.2f} ({plan.position_pct:.1f}% Depot), "
+          f"Stop {plan.stop_price:.2f}, max. Verlust {plan.risk_amount:.2f}")
 
 
 if __name__ == "__main__":

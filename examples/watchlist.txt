@@ -1,0 +1,12 @@
+# Beispiel-Watchlist - ein Ticker pro Zeile.
+# Aufruf:  python -m stockanalyzer --watchlist examples/watchlist.txt --rank
+# Deutsche Aktien brauchen ein Boersen-Suffix (z.B. .DE fuer Xetra).
+
+AAPL        # Apple
+MSFT        # Microsoft
+NVDA        # Nvidia
+GOOGL       # Alphabet
+AMZN        # Amazon
+SAP.DE      # SAP (Xetra)
+ASML        # ASML
+KO          # Coca-Cola (Dividende)
