@@ -120,15 +120,26 @@ def _fetch_stooq(ticker: str, period: str) -> MarketData:
     symbol = ticker if ("." in ticker or ticker.startswith("^")) else f"{ticker}.US"
     url = f"https://stooq.com/q/d/l/?s={symbol.lower()}&i=d"
 
+    # Robuster Download per urllib (mit Browser-User-Agent) statt pd.read_csv(url):
+    # funktioniert ohne Zusatzpakete auch auf iPad-Python-Apps (Pyto, a-Shell),
+    # und ein echter User-Agent vermeidet vereinzelte Sperren.
+    import io
+    import urllib.request
+
     try:
-        df = pd.read_csv(url)
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "Mozilla/5.0 (stockanalyzer)"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+        df = pd.read_csv(io.StringIO(raw))
     except Exception as exc:  # noqa: BLE001
         raise DataError(f"Stooq-Daten fuer '{ticker}' nicht ladbar: {exc}") from exc
 
     if df is None or df.empty or "Close" not in df.columns:
         raise DataError(
             f"Keine Stooq-Daten fuer '{ticker}'. Symbol korrekt? "
-            f"(US-Aktien: reines Symbol, dt. Aktien: z.B. 'SAP.DE')."
+            f"(US-Aktien: reines Symbol, dt. Aktien: z.B. 'SAP.DE'). "
+            f"Antwort begann mit: {raw[:60]!r}"
         )
 
     df["Date"] = pd.to_datetime(df["Date"])

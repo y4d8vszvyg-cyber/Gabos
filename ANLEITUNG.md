@@ -221,23 +221,45 @@ Google-Konto nötig.
    > (Sicherheits-Sandbox). Deshalb herunterladen und öffnen. Der PNG-Chart aus
    > Schritt 5 wird dagegen sofort angezeigt.
 
-### Weg 2: Direkt auf dem iPad (Python-App)
+### Weg 2: Direkt auf dem iPad mit **Pyto**
 
-Es gibt Python-Apps für iPad, z. B. **a-Shell** (kostenlos), **Pyto** oder
-**Pythonista**. Seit dieses Tool **ohne scipy** auskommt, ist das machbar –
-es braucht nur `numpy` und `pandas` (die diese Apps meist schon mitbringen).
+Pyto bringt Python inkl. `pandas`, `numpy` und `matplotlib` mit und hat
+Internetzugang. **Aber Achtung – die wichtigste Info für Pyto:**
 
-Beispiel in **a-Shell** (App aus dem App Store laden, dann im App-Terminal):
+> ⚠️ **`yfinance` (Yahoo) lässt sich in Pyto meist NICHT installieren**, weil es
+> eine kompilierte Komponente (`curl_cffi`) braucht, die auf dem iPad nicht
+> baubar ist. **Lösung:** Nutze die eingebaute zweite Datenquelle **Stooq** –
+> die braucht nur `pandas` (in Pyto vorhanden) und liefert echte
+> Börsen-Tageskurse (US, DE, Indizes, Forex, Krypto).
+>
+> Was über Stooq **nicht** geht: Optionsketten (`--options`) und
+> Fundamentaldaten. Dafür brauchst du Yahoo – am einfachsten in **Colab (Weg 1)**
+> oder am PC.
+
+**So geht's in Pyto – Schritt für Schritt:**
+
+1. **Code aufs iPad holen:** Auf GitHub den grünen Button **„Code" → „Download
+   ZIP"** (in Safari). Die ZIP in der **Dateien-App** entpacken und den Ordner
+   `Gabos` nach **„Auf meinem iPad → Pyto"** verschieben.
+2. **Pyto öffnen**, links auf den Ordner `Gabos` navigieren und die Datei
+   **`examples/pyto_start.py`** öffnen.
+3. Oben rechts auf **▶ (Run)** drücken. Es lädt echte Kurse über Stooq und zeigt
+   Analyse, Signale und einen Backtest an.
+4. **Andere Aktie?** In `pyto_start.py` ganz oben die Zeile
+   `SYMBOL = "AAPL"` ändern (z. B. `"SAP.DE"` oder `"NVDA"`) und wieder ▶ drücken.
+
+Das Skript speichert außerdem eine **`report.html`** im Projektordner – die kannst
+du in Pyto über das Teilen-Menü bzw. in der Dateien-App im Browser öffnen (dann
+mit Hover-Charts).
+
+**Alternative App – a-Shell** (kostenlos, hat ein echtes Terminal):
 ```
-pip install yfinance pandas numpy tabulate
-python -m stockanalyzer AAPL
+pip install pandas numpy tabulate
+python -m stockanalyzer AAPL --source stooq
 ```
 
-> Einschränkungen auf dem iPad: Grafik-Bibliotheken (matplotlib) laufen nicht in
-> jeder App – dann klappt die reine Text-Analyse, aber nicht immer der PNG-Chart.
-> Der **interaktive HTML-Report** funktioniert überall, wo du die erzeugte Datei
-> im Browser öffnen kannst. **Für den vollen Funktionsumfang ist Weg 1 (Colab)
-> die einfachste Wahl.**
+> Für den **vollen** Funktionsumfang (Yahoo-Daten, Optionen, Fundamentaldaten)
+> bleibt **Weg 1 (Google Colab)** die einfachste Wahl auf dem iPad.
 
 ---
 
