@@ -201,16 +201,25 @@ Google-Konto nötig.
    %cd Gabos
    !pip install -r requirements.txt
    ```
-4. In eine **neue Zelle** die Analyse starten:
+4. In eine **neue Zelle** die Analyse starten (Text-Ausgabe mit Live-Daten):
    ```
    !python -m stockanalyzer AAPL --options
    ```
-5. Interaktiven Report erzeugen und **direkt im Notebook anzeigen**:
+5. Chart **direkt im Notebook anzeigen** (PNG wird in Colab zuverlässig gerendert):
+   ```
+   !python -m stockanalyzer AAPL --plot chart.png --backtest
+   from IPython.display import Image
+   Image("chart.png")
+   ```
+6. Den **interaktiven** HTML-Report erzeugen und herunterladen (dann im Browser öffnen):
    ```
    !python -m stockanalyzer AAPL --report report.html --compare
-   from IPython.display import IFrame
-   IFrame("report.html", width=900, height=1200)
+   from google.colab import files
+   files.download("report.html")
    ```
+   > Hinweis: Colab zeigt die interaktive HTML-Datei nicht direkt inline an
+   > (Sicherheits-Sandbox). Deshalb herunterladen und öffnen. Der PNG-Chart aus
+   > Schritt 5 wird dagegen sofort angezeigt.
 
 ### Weg 2: Direkt auf dem iPad (Python-App)
 
