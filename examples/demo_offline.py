@@ -97,6 +97,17 @@ def main() -> None:
     print(f"    {plan.shares} Stueck fuer {plan.position_value:.2f} ({plan.position_pct:.1f}% Depot), "
           f"Stop {plan.stop_price:.2f}, max. Verlust {plan.risk_amount:.2f}")
 
+    # --- Equity-Kurve als Chart speichern (falls matplotlib installiert) ---
+    try:
+        from stockanalyzer import plot
+        path = plot.equity_curve(
+            result, df["Close"],
+            title="Demo - Equity-Kurve (synthetische Daten)", outfile="equity.png",
+        )
+        print(f"\n  Equity-Kurve gespeichert: {path}")
+    except Exception as exc:  # noqa: BLE001 - Chart ist optional
+        print(f"\n  (Chart uebersprungen: {exc})")
+
 
 if __name__ == "__main__":
     main()

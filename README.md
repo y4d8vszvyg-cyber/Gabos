@@ -31,8 +31,9 @@ Black-Scholes-Modell mit allen wichtigen Greeks.
 5. **Optionsanalyse** – Black-Scholes-Preis, implizite Volatilität und Greeks
    (Delta, Gamma, Theta, Vega, Rho). Aus der Marktrichtung wird eine passende
    Call- (bullisch) oder Put-Idee (bärisch) abgeleitet, inkl. Risikohinweis.
-6. **Backtesting** – testet die Trendfolge-Strategie auf der Historie und
-   vergleicht sie mit Buy & Hold (Rendite, Sharpe, Max Drawdown, Trefferquote).
+6. **Backtesting + Chart** – testet die Trendfolge-Strategie auf der Historie,
+   vergleicht sie mit Buy & Hold (Rendite, Sharpe, Max Drawdown, Trefferquote)
+   und zeichnet die **Equity-Kurve** als PNG (hell/dunkel).
 7. **Positionsgrößen-Rechner** – berechnet risikobasiert (Risk-per-Trade +
    ATR-Stop), wie viele Stücke du kaufst, damit ein Fehlschlag das Depot nicht
    ruiniert. Das ist beim Geldverdienen wichtiger als jedes einzelne Signal.
@@ -67,6 +68,10 @@ python -m stockanalyzer KO --fundamental-weight 0.6
 # Backtest: hätte die Strategie in der Vergangenheit funktioniert?
 python -m stockanalyzer AAPL --backtest
 
+# Equity-Kurve als Chart (PNG) speichern – optional im dunklen Design
+python -m stockanalyzer AAPL --plot equity.png
+python -m stockanalyzer AAPL --plot chart.png --dark
+
 # Positionsgröße: 10.000 € Depot, 1% Risiko je Trade, Stop = 2x ATR
 python -m stockanalyzer AAPL --capital 10000 --risk-per-trade 1
 
@@ -84,6 +89,8 @@ python -m stockanalyzer --watchlist examples/watchlist.txt --rank
 | `--fundamental-weight` | Gewicht Fundamentaldaten im Gesamt-Score (`0`–`1`)    | `0.4`    |
 | `--risk-free-rate`     | Risikofreier Zins p. a. für die Optionsbewertung      | `0.03`   |
 | `--backtest`           | Historischen Backtest der Strategie ausgeben          | aus      |
+| `--plot [DATEI]`       | Equity-Kurve als PNG speichern (Standard: equity.png) | –        |
+| `--dark`               | Chart im dunklen Farbschema                           | aus      |
 | `--watchlist DATEI`    | Ticker aus einer Textdatei laden                      | –        |
 | `--capital`            | Depotkapital → risikobasierte Positionsgröße          | –        |
 | `--risk-per-trade`     | Anteil des Depots, den du je Trade riskierst (%)      | `1.0`    |

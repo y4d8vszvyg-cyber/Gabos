@@ -172,6 +172,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Zusaetzlich Call/Put-Optionsideen berechnen")
     p.add_argument("--backtest", action="store_true",
                    help="Historischen Backtest der Trendfolge-Strategie ausgeben")
+    p.add_argument("--plot", metavar="DATEI", nargs="?", const="equity.png",
+                   help="Equity-Kurve als PNG speichern (Standarddatei: equity.png)")
+    p.add_argument("--dark", action="store_true",
+                   help="Chart im dunklen Farbschema zeichnen")
     p.add_argument("--fundamental-weight", type=float, default=0.4,
                    help="Gewicht der Fundamentaldaten (0..1). Standard: 0.4")
     p.add_argument("--risk-free-rate", type=float, default=0.03,
@@ -240,8 +244,23 @@ def main(argv=None) -> int:
             report = analyzer.analyze_market_data(md, with_options=args.options)
             _print_report(report)
 
-            if args.backtest:
-                _print_backtest(bt_mod.run(md.history, risk_free_rate=args.risk_free_rate))
+            if args.backtest or args.plot:
+                result = bt_mod.run(md.history, risk_free_rate=args.risk_free_rate)
+                if args.backtest:
+                    _print_backtest(result)
+                if args.plot:
+                    from . import plot as plot_mod
+                    # Bei mehreren Tickern Dateinamen eindeutig machen.
+                    outfile = args.plot
+                    if len(tickers) > 1:
+                        base, _, ext = outfile.rpartition(".")
+                        outfile = f"{base}_{ticker}.{ext}" if base else f"{outfile}_{ticker}"
+                    path = plot_mod.equity_curve(
+                        result, md.history["Close"],
+                        title=f"{report.name} ({ticker}) - Equity-Kurve",
+                        outfile=outfile, dark=args.dark,
+                    )
+                    print(f"\n  Chart gespeichert: {path}")
 
             if args.capital:
                 from .indicators import atr as atr_fn
