@@ -54,6 +54,10 @@ pip install -r requirements.txt
 
 Python ≥ 3.9.
 
+> 🔰 **Einsteiger?** Eine ausführliche, bebilderte Schritt-für-Schritt-Anleitung
+> (inkl. Python-Installation für Windows/Mac/Linux und Live-Daten) findest du in
+> **[ANLEITUNG.md](ANLEITUNG.md)**.
+
 ## Nutzung
 
 ```bash
