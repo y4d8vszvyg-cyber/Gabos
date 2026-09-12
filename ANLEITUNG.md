@@ -180,6 +180,58 @@ python -m stockanalyzer AAPL --plot chart.png --backtest
 
 ---
 
+## Auf dem iPad oder Smartphone
+
+**Kurz gesagt: Ja, es geht – aber anders als am PC.** Ein iPad/iPhone hat kein
+normales Terminal. Es gibt zwei realistische Wege:
+
+### Weg 1: In der Cloud (empfohlen, am einfachsten) – Google Colab
+
+Hier läuft alles auf Googles Rechnern, dein iPad ist nur der Bildschirm. **Volle
+Leistung, echte Live-Daten, keine Installations-Probleme.** Kostenlos, nur ein
+Google-Konto nötig.
+
+1. In **Safari** (oder Chrome) auf **https://colab.research.google.com** gehen und
+   mit Google-Konto anmelden.
+2. **„+ Neues Notebook"** erstellen.
+3. In die erste Zelle das hier eintippen und mit dem ▶-Knopf ausführen
+   (Projekt laden + Bibliotheken installieren):
+   ```
+   !git clone https://github.com/y4d8vszvyg-cyber/Gabos.git
+   %cd Gabos
+   !pip install -r requirements.txt
+   ```
+4. In eine **neue Zelle** die Analyse starten:
+   ```
+   !python -m stockanalyzer AAPL --options
+   ```
+5. Interaktiven Report erzeugen und **direkt im Notebook anzeigen**:
+   ```
+   !python -m stockanalyzer AAPL --report report.html --compare
+   from IPython.display import IFrame
+   IFrame("report.html", width=900, height=1200)
+   ```
+
+### Weg 2: Direkt auf dem iPad (Python-App)
+
+Es gibt Python-Apps für iPad, z. B. **a-Shell** (kostenlos), **Pyto** oder
+**Pythonista**. Seit dieses Tool **ohne scipy** auskommt, ist das machbar –
+es braucht nur `numpy` und `pandas` (die diese Apps meist schon mitbringen).
+
+Beispiel in **a-Shell** (App aus dem App Store laden, dann im App-Terminal):
+```
+pip install yfinance pandas numpy tabulate
+python -m stockanalyzer AAPL
+```
+
+> Einschränkungen auf dem iPad: Grafik-Bibliotheken (matplotlib) laufen nicht in
+> jeder App – dann klappt die reine Text-Analyse, aber nicht immer der PNG-Chart.
+> Der **interaktive HTML-Report** funktioniert überall, wo du die erzeugte Datei
+> im Browser öffnen kannst. **Für den vollen Funktionsumfang ist Weg 1 (Colab)
+> die einfachste Wahl.**
+
+---
+
 ## Häufige Probleme & Lösungen
 
 | Problem / Meldung | Ursache & Lösung |

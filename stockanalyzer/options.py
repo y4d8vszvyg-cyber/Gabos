@@ -15,7 +15,27 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from scipy.stats import norm
+
+class _Normal:
+    """Standardnormalverteilung ohne externe Abhaengigkeit (nur stdlib ``math``).
+
+    Ersetzt ``scipy.stats.norm`` - so laeuft die Optionsbewertung auch auf
+    iPad/Smartphone-Python-Apps (a-Shell, Pyto, Pythonista), wo scipy fehlt.
+    """
+
+    _SQRT_2 = math.sqrt(2.0)
+    _INV_SQRT_2PI = 1.0 / math.sqrt(2.0 * math.pi)
+
+    @classmethod
+    def cdf(cls, x: float) -> float:
+        return 0.5 * (1.0 + math.erf(x / cls._SQRT_2))
+
+    @classmethod
+    def pdf(cls, x: float) -> float:
+        return cls._INV_SQRT_2PI * math.exp(-0.5 * x * x)
+
+
+norm = _Normal
 
 
 def _d1_d2(S: float, K: float, T: float, r: float, sigma: float, q: float):

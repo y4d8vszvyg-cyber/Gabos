@@ -1,6 +1,7 @@
 yfinance>=0.2.40
 pandas>=2.0
 numpy>=1.24
-scipy>=1.10
 tabulate>=0.9
 matplotlib>=3.7
+# Hinweis: scipy wird NICHT mehr benoetigt (Normalverteilung ist in
+# options.py per math.erf implementiert) -> laeuft auch auf iPad-Python-Apps.
